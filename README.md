@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # RoomHub (midterm starter)
 
 Read `ASSIGNMENT.md` before anything else.
@@ -23,3 +24,6 @@ git remote add origin <link-of-your-repo>
 
 You can also create a new public repo and copy the contents of this folder into it.
 What matters is that the repo you submit is **public** and contains your own commits.
+=======
+# .NET_Midterm_Miron_Andrei_3E1
+>>>>>>> 426fb05f4894b889c2dd87e0a21247eb22bf8531
