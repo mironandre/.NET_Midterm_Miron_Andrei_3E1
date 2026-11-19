@@ -4,7 +4,7 @@ namespace RoomHub.Api.Features.Bookings.CancelBooking;
 
 public record CancelBookingCommand(Guid Id);
 
-public sealed class CancelBookingHandler(IBookingRepository bookings, IUnitOfWork unitOfWork)
+public sealed class CancelBookingHandler(IBookingRepository bookings, IUnitOfWork unitOfWork, TimeProvider timeProvider)
     : ICommandHandler<CancelBookingCommand, bool>
 {
     public async Task<Result<bool>> HandleAsync(CancelBookingCommand command, CancellationToken ct)
@@ -14,8 +14,8 @@ public sealed class CancelBookingHandler(IBookingRepository bookings, IUnitOfWor
         if (booking is null)
             return Error.NotFound("BookingNotFound", "The booking does not exist.");
 
-        // R8: cancelling an already cancelled booking gives 409.
-        var result = booking.Cancel();
+        // R8: already cancelled -> 409. R11: too close to start -> 409.
+        var result = booking.Cancel(timeProvider.GetUtcNow());
         if (result.IsFailure)
             return result.Error!;
 

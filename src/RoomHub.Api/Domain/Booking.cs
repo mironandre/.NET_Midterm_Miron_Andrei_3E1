@@ -11,6 +11,13 @@ public class Booking
     // The longest a booking may last (R6). Exactly 4 hours is allowed.
     public static readonly TimeSpan MaxDuration = TimeSpan.FromHours(4);
 
+    // R10: rooms with capacity greater than 10 may be booked for at most 2 hours.
+    public static readonly TimeSpan LargeRoomMaxDuration = TimeSpan.FromHours(2);
+    public const int LargeRoomCapacityThreshold = 10;
+
+    // R11: a booking can be cancelled only if it starts at least this far from now.
+    public static readonly TimeSpan MinNoticeToCancel = TimeSpan.FromMinutes(60);
+
     // Parameterless ctor for EF Core materialization.
     private Booking() { }
 
@@ -63,9 +70,16 @@ public class Booking
         if (startUtc < now.UtcDateTime)
             return Error.Validation("StartInPast", "A booking cannot start in the past.");
 
-        // R6: the maximum duration is 4 hours (exactly 4 hours is allowed).
-        if (endUtc - startUtc > MaxDuration)
-            return Error.Validation("DurationTooLong", "A booking cannot last more than 4 hours.");
+        // R6 / R10: the maximum duration depends on the room capacity.
+        // Rooms with capacity > 10 are limited to 2 hours; others keep the 4-hour limit.
+        var maxDuration = room.Capacity > LargeRoomCapacityThreshold
+            ? LargeRoomMaxDuration
+            : MaxDuration;
+
+        if (endUtc - startUtc > maxDuration)
+            return Error.Validation(
+                "DurationTooLong",
+                $"A booking in this room cannot last more than {maxDuration.TotalHours} hours.");
 
         return new Booking(Guid.NewGuid(), room.Id, bookedBy.Trim(), startUtc, endUtc, attendees);
     }
@@ -81,10 +95,16 @@ public class Booking
     }
 
     // R8: cancelling moves Active -> Cancelled; cancelling an already cancelled booking is a conflict.
-    public Result<Booking> Cancel()
+    // R11: a booking can be cancelled only if it starts at least 60 minutes from now.
+    public Result<Booking> Cancel(DateTimeOffset now)
     {
         if (Status == BookingStatus.Cancelled)
             return Error.Conflict("AlreadyCancelled", "The booking is already cancelled.");
+
+        if (StartUtc - now.UtcDateTime < MinNoticeToCancel)
+            return Error.Conflict(
+                "CancelTooLate",
+                "A booking can only be cancelled at least 60 minutes before it starts.");
 
         Status = BookingStatus.Cancelled;
         return this;
